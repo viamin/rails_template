@@ -90,6 +90,8 @@ file 'config/rubocop.yml', <<~CODE
   Style/Documentation:
     Exclude:
       - app/helpers/*
+      - app/mailers/application_mailer.rb
+      - app/models/application_record.rb
       - config/**/*
 CODE
 
