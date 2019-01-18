@@ -13,6 +13,7 @@ gem_group :development, :test do
   gem 'guard-brakeman'
   gem 'guard-fasterer'
   gem 'guard-foreman'
+  gem 'guard-rails'
   gem 'guard-rspec'
   gem 'guard-rubocop'
   gem 'factory_bot_rails'
@@ -35,10 +36,7 @@ gem_group :test do
   gem 'simplecov'
 end
 
-puma_port = ask('What port do you want to use for your app server? [3000]')
-puma_port = 3000 if puma_port =~ /\s*/
 file 'Procfile.dev', <<~CODE
-  web:          bundle exec puma -C config/puma.rb -b 'ssl://127.0.0.1:#{puma_port}?key=./ssl/server.key&cert=./ssl/server.crt'
   db:           postgres -D /usr/local/var/postgres
   redis:        redis-server /usr/local/etc/redis.conf
   # mailcatcher:  bundle exec subcontract -- mailcatcher --foreground
@@ -54,6 +52,26 @@ file '.rubocop.yml', <<~CODE
       - db/**/*
       - script/**/*
       - vendor/bundle/**/*
+CODE
+
+puma_port = ask('What port do you want to use for your app server? [3000]')
+puma_port = 3000 if puma_port =~ /\s*/
+file 'config/puma.rb', <<~CODE
+  threads_count = ENV.fetch('RAILS_MAX_THREADS') { 5 }
+  threads threads_count, threads_count
+
+  port ENV.fetch('PORT') { #{puma_port} }
+
+  ssl_bind '127.0.0.1', ENV.fetch('PORT') { #{puma_port} },
+          key: ENV.fetch('SSL_KEY_PATH') { './ssl/server.key' },
+          cert: ENV.fetch('SSL_CERT_PATH') { './ssl/server.crt' }
+
+  environment ENV.fetch('RAILS_ENV') { 'development' }
+
+  # workers ENV.fetch("WEB_CONCURRENCY") { 2 }
+  # preload_app!
+
+  plugin :tmp_restart
 CODE
 
 file 'config/rubocop.yml', <<~CODE
@@ -110,13 +128,9 @@ file 'Guardfile', <<~CODE
     watch(%r{^app/.*.rb})
   end
 
-  guard :foreman, procfile: 'Procfile.dev' do
-    watch(%r{^app/(controllers|models|helpers)/.+.rb$})
-    watch(%r{^lib/.+.rb$})
-    watch(%r{^config/*})
-  end
+  guard :foreman, procfile: 'Procfile.dev'
 
-  guard :rspec, cmd: 'bin/rspec' do
+  guard :rspec, cmd: 'bundle exec rspec' do
     require 'guard/rspec/dsl'
     dsl = Guard::RSpec::Dsl.new(self)
 
@@ -167,12 +181,7 @@ CODE
 
 after_bundle do
   generate('rspec:install')
-  run 'bundle exec guard init'
-  run 'bundle exec guard init rspec'
-  run 'bundle exec guard init rubocop'
-  run 'bundle exec guard init fasterer'
-  run 'bundle exec guard init brakeman'
-  run 'bundle exec guard init foreman'
+  run 'bundle exec guard init rails'
   run 'bundle exec rails_dev_ssl generate_certificates'
   run 'rm -rf test/'
   rails_command 'app:update:bin'
