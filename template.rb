@@ -108,9 +108,17 @@ file 'config/rubocop.yml', <<~CODE
   Style/Documentation:
     Exclude:
       - app/helpers/*
+      - app/controller/application_controller.rb
       - app/mailers/application_mailer.rb
       - app/models/application_record.rb
+      - app/policies/*
       - config/**/*
+CODE
+
+file '.rspec', <<~CODE
+  --color
+  --require rails_helper
+  --format Fuubar
 CODE
 
 file 'Guardfile', <<~CODE
@@ -189,16 +197,12 @@ after_bundle do
 
   generate('annotate:install')
   generate('devise:install')
+  generate('pundit:install')
 
   devise_user = ask('What is your Devise User model? [User]')
-  devise_user = 'user' if devise_user =~ /\s*/
+  devise_user = 'User' if devise_user =~ /\s*/
   generate("devise #{devise_user}")
-
-  file '.rspec', <<~CODE
-    --color
-    --require rails_helper
-    --format Fuubar
-  CODE
+  generate("rolify Role #{devise_user}")
 
   run 'bundle exec rubocop -a'
 
