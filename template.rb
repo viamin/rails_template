@@ -82,6 +82,7 @@ file 'config/rubocop.yml', <<~CODE
     Exclude:
       - Guardfile
       - lib/tasks/*
+      - spec/**/*
   Metrics/LineLength:
     Max: 92
     Exclude:
@@ -90,6 +91,8 @@ file 'config/rubocop.yml', <<~CODE
       - Rakefile
       - config/environments/*
       - config/initializers/*
+      - config/routes.rb
+      - spec/**/*
   Naming/FileName:
     Exclude:
       - Guardfile
@@ -108,7 +111,7 @@ file 'config/rubocop.yml', <<~CODE
   Style/Documentation:
     Exclude:
       - app/helpers/*
-      - app/controller/application_controller.rb
+      - app/controllers/*
       - app/mailers/application_mailer.rb
       - app/models/application_record.rb
       - app/policies/*
@@ -185,13 +188,21 @@ file 'Guardfile', <<~CODE
     watch(/.+.rb$/)
     watch(%r{(?:.+/)?.rubocop(?:_todo)?.yml$}) { |m| File.dirname(m[0]) }
   end
+
+  guard :rails, CLI: 'puma -C config/puma.rb' do
+    watch('Gemfile.lock')
+    watch(%r{^(config|lib)/.*})
+  end
 CODE
 
 after_bundle do
   generate('rspec:install')
-  run 'bundle exec guard init rails'
   run 'bundle exec rails_dev_ssl generate_certificates'
   run 'rm -rf test/'
+  run 'mv Gemfile config/Gemfile'
+  run 'mv Gemfile.lock config/Gemfile.lock'
+  run 'ln -s config/Gemfile Gemfile'
+  run 'ln -s config/Gemfile.lock Gemfile.lock'
   rails_command 'app:update:bin'
   run 'bundle exec spring binstub --all'
 
